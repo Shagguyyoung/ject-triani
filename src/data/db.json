@@ -1,0 +1,16 @@
+{
+  "membres": [
+    { "id": "1", "nom": "Koné Aminata", "role": "Membre", "tel": "07 00 11 22", "email": "", "statut": "ok", "created_at": "2025-04-01" },
+    { "id": "2", "nom": "Bamba Moussa", "role": "Trésorier", "tel": "05 44 33 22", "email": "", "statut": "ok", "created_at": "2025-04-01" },
+    { "id": "3", "nom": "Touré Fatou", "role": "Membre", "tel": "01 23 45 67", "email": "", "statut": "pending", "created_at": "2025-04-02" },
+    { "id": "4", "nom": "Coulibaly Jean", "role": "Secrétaire", "tel": "07 87 65 43", "email": "", "statut": "ok", "created_at": "2025-04-02" },
+    { "id": "5", "nom": "Diallo Ibrahim", "role": "Membre", "tel": "05 11 22 33", "email": "", "statut": "late", "created_at": "2025-04-03" }
+  ],
+  "cotisations": [
+    { "id": "1", "membre_id": "1", "montant": 10000, "date_paiement": "2025-04-03", "mois": "Avril 2025", "statut": "ok" },
+    { "id": "2", "membre_id": "2", "montant": 10000, "date_paiement": "2025-04-01", "mois": "Avril 2025", "statut": "ok" },
+    { "id": "3", "membre_id": "3", "montant": 10000, "date_paiement": null, "mois": "Avril 2025", "statut": "pending" },
+    { "id": "4", "membre_id": "4", "montant": 10000, "date_paiement": "2025-04-05", "mois": "Avril 2025", "statut": "ok" },
+    { "id": "5", "membre_id": "5", "montant": 10000, "date_paiement": null, "mois": "Avril 2025", "statut": "late" }
+  ]
+}
