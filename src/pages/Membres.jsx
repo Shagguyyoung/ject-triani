@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMembers } from "../hooks/useMembers";
+import { modifierMembre } from "../data/store";
 
 const badge = {
   ok: { label: "À jour", cls: "bg-green-950 text-green-400" },
@@ -12,11 +13,15 @@ function initials(nom) {
 }
 
 export default function Membres() {
-  const { membres, loading, ajouterMembre, supprimerMembre } = useMembers();
+  const { membres, loading, ajouterMembre, supprimerMembre, modifierStatut, setMembres } = useMembers();
   const [search, setSearch] = useState("");
   const [filtre, setFiltre] = useState("tous");
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ nom: "", tel: "", email: "", role: "Membre", statut: "ok" });
+
+  // ─── États modification ───────────────────────────
+  const [membreAModifier, setMembreAModifier] = useState(null);
+  const [formModif, setFormModif] = useState({ nom: "", tel: "", email: "", role: "Membre", statut: "ok" });
 
   const filtered = membres.filter((m) => {
     const q = search.toLowerCase();
@@ -28,8 +33,29 @@ export default function Membres() {
   const handleAjouter = async () => {
     if (!form.nom.trim()) return;
     await ajouterMembre(form);
+    if (form.email) {
+      alert(
+        `Membre ajouté !\n\nIdentifiants de connexion :\nEmail : ${form.email}\nMot de passe : ject2026\n\nCommuniquez ces informations au membre.`
+      );
+    }
     setModal(false);
     setForm({ nom: "", tel: "", email: "", role: "Membre", statut: "ok" });
+  };
+
+  // ─── Ouvrir modal modification ────────────────────
+  const handleModifier = (m) => {
+    setMembreAModifier(m);
+    setFormModif({ nom: m.nom, tel: m.tel ?? "", email: m.email ?? "", role: m.role, statut: m.statut });
+  };
+
+  // ─── Sauvegarder modification ─────────────────────
+  const handleSauvegarder = () => {
+    if (!formModif.nom.trim()) return;
+    modifierMembre(membreAModifier.id, formModif);
+    setMembres((prev) =>
+      prev.map((m) => (m.id === membreAModifier.id ? { ...m, ...formModif } : m))
+    );
+    setMembreAModifier(null);
   };
 
   const filtres = [
@@ -48,7 +74,8 @@ export default function Membres() {
   return (
     <div className="min-h-screen bg-[#0a1628]" style={{ fontFamily: "'Montserrat', sans-serif" }}>
       <div className="p-6">
-        <h1 className="text-3xl font-medium text-[#f0e8d6] mb-5" style={{ fontFamily: "'Cormorant Garamond', serif" }}>Membres</h1>
+        <h1 className="text-3xl font-medium text-[#f0e8d6] mb-5"
+          style={{ fontFamily: "'Cormorant Garamond', serif" }}>Membres</h1>
 
         {/* Toolbar */}
         <div className="flex flex-wrap gap-2 items-center mb-5">
@@ -61,35 +88,30 @@ export default function Membres() {
               className="w-full bg-[#0d1e38] border border-[#d4af7a22] rounded-lg pl-9 pr-3 py-2 text-sm text-[#f0e8d6] placeholder-[#445566] outline-none"
             />
           </div>
-
           {filtres.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFiltre(f.key)}
+            <button key={f.key} onClick={() => setFiltre(f.key)}
               className={`px-3 py-2 text-xs rounded-lg border transition-all ${
                 filtre === f.key
                   ? "border-[#d4af7a66] text-[#d4af7a] bg-[#0d1e38]"
                   : "border-[#d4af7a22] text-[#8899aa] bg-[#0d1e38]"
-              }`}
-            >
+              }`}>
               {f.label}
             </button>
           ))}
-
-          <button
-            onClick={() => setModal(true)}
-            className="ml-auto bg-[#d4af7a] text-[#0a1628] text-xs font-medium px-4 py-2 rounded-lg hover:opacity-90 transition"
-          >
+          <button onClick={() => setModal(true)}
+            className="ml-auto bg-[#d4af7a] text-[#0a1628] text-xs font-medium px-4 py-2 rounded-lg hover:opacity-90 transition">
             + Ajouter
           </button>
         </div>
 
-        <p className="text-xs text-[#8899aa] mb-3">{filtered.length} membre{filtered.length > 1 ? "s" : ""}</p>
+        <p className="text-xs text-[#8899aa] mb-3">
+          {filtered.length} membre{filtered.length > 1 ? "s" : ""}
+        </p>
 
         {/* Liste */}
         <div className="flex flex-col gap-2.5">
           {filtered.map((m) => (
-            <div key={m.id} className="bg-[#0d1e38] border border-[#d4af7a22] hover:border-[#d4af7a44] rounded-xl p-4 flex items-center gap-3 transition cursor-pointer">
+            <div key={m.id} className="bg-[#0d1e38] border border-[#d4af7a22] hover:border-[#d4af7a44] rounded-xl p-4 flex items-center gap-3 transition">
               <div className="w-10 h-10 rounded-full bg-[#d4af7a22] flex items-center justify-center text-sm text-[#d4af7a] font-medium flex-shrink-0">
                 {initials(m.nom)}
               </div>
@@ -101,13 +123,14 @@ export default function Membres() {
                 {badge[m.statut].label}
               </span>
               <div className="flex gap-1.5 ml-2">
-                <button className="text-[11px] px-2.5 py-1 rounded-md bg-[#d4af7a11] border border-[#d4af7a22] text-[#d4af7a]">
+                <button
+                  onClick={() => handleModifier(m)}
+                  className="text-[11px] px-2.5 py-1 rounded-md bg-[#d4af7a11] border border-[#d4af7a22] text-[#d4af7a]">
                   Modifier
                 </button>
                 <button
                   onClick={() => supprimerMembre(m.id)}
-                  className="text-[11px] px-2.5 py-1 rounded-md bg-[#f8717111] border border-[#f8717122] text-red-400"
-                >
+                  className="text-[11px] px-2.5 py-1 rounded-md bg-[#f8717111] border border-[#f8717122] text-red-400">
                   Retirer
                 </button>
               </div>
@@ -116,11 +139,12 @@ export default function Membres() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal ajout */}
       {modal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-[#0d1e38] border border-[#d4af7a33] rounded-xl p-6 w-full max-w-sm">
-            <h2 className="text-xl text-[#f0e8d6] mb-4" style={{ fontFamily: "'Cormorant Garamond', serif" }}>Nouveau membre</h2>
+            <h2 className="text-xl text-[#f0e8d6] mb-4"
+              style={{ fontFamily: "'Cormorant Garamond', serif" }}>Nouveau membre</h2>
 
             {[
               { label: "Nom complet", key: "nom", placeholder: "Koné Aminata" },
@@ -140,22 +164,16 @@ export default function Membres() {
 
             <div className="mb-3">
               <label className="block text-[10px] tracking-widest uppercase text-[#8899aa] mb-1.5">Rôle</label>
-              <select
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
-                className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] outline-none"
-              >
+              <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
+                className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] outline-none">
                 {["Membre", "Trésorier", "Secrétaire", "Président"].map((r) => <option key={r}>{r}</option>)}
               </select>
             </div>
 
             <div className="mb-4">
               <label className="block text-[10px] tracking-widest uppercase text-[#8899aa] mb-1.5">Statut</label>
-              <select
-                value={form.statut}
-                onChange={(e) => setForm({ ...form, statut: e.target.value })}
-                className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] outline-none"
-              >
+              <select value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })}
+                className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] outline-none">
                 <option value="ok">À jour</option>
                 <option value="pending">En attente</option>
                 <option value="late">En retard</option>
@@ -163,8 +181,61 @@ export default function Membres() {
             </div>
 
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setModal(false)} className="px-4 py-2 text-xs text-[#8899aa] border border-[#d4af7a22] rounded-lg">Annuler</button>
-              <button onClick={handleAjouter} className="px-4 py-2 text-xs font-medium bg-[#d4af7a] text-[#0a1628] rounded-lg hover:opacity-90">Enregistrer</button>
+              <button onClick={() => setModal(false)}
+                className="px-4 py-2 text-xs text-[#8899aa] border border-[#d4af7a22] rounded-lg">Annuler</button>
+              <button onClick={handleAjouter}
+                className="px-4 py-2 text-xs font-medium bg-[#d4af7a] text-[#0a1628] rounded-lg hover:opacity-90">Enregistrer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal modification */}
+      {membreAModifier && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0d1e38] border border-[#d4af7a33] rounded-xl p-6 w-full max-w-sm">
+            <h2 className="text-xl text-[#f0e8d6] mb-4"
+              style={{ fontFamily: "'Cormorant Garamond', serif" }}>Modifier le membre</h2>
+
+            {[
+              { label: "Nom complet", key: "nom", placeholder: "Koné Aminata" },
+              { label: "Téléphone", key: "tel", placeholder: "07 00 11 22" },
+              { label: "Email", key: "email", placeholder: "email@example.com" },
+            ].map((f) => (
+              <div key={f.key} className="mb-3">
+                <label className="block text-[10px] tracking-widest uppercase text-[#8899aa] mb-1.5">{f.label}</label>
+                <input
+                  placeholder={f.placeholder}
+                  value={formModif[f.key]}
+                  onChange={(e) => setFormModif({ ...formModif, [f.key]: e.target.value })}
+                  className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] placeholder-[#445566] outline-none"
+                />
+              </div>
+            ))}
+
+            <div className="mb-3">
+              <label className="block text-[10px] tracking-widest uppercase text-[#8899aa] mb-1.5">Rôle</label>
+              <select value={formModif.role} onChange={(e) => setFormModif({ ...formModif, role: e.target.value })}
+                className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] outline-none">
+                {["Membre", "Trésorier", "Secrétaire", "Président"].map((r) => <option key={r}>{r}</option>)}
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-[10px] tracking-widest uppercase text-[#8899aa] mb-1.5">Statut</label>
+              <select value={formModif.statut} onChange={(e) => setFormModif({ ...formModif, statut: e.target.value })}
+                className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] outline-none">
+                <option value="ok">À jour</option>
+                <option value="pending">En attente</option>
+                <option value="late">En retard</option>
+              </select>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setMembreAModifier(null)}
+                className="px-4 py-2 text-xs text-[#8899aa] border border-[#d4af7a22] rounded-lg">Annuler</button>
+              <button onClick={handleSauvegarder}
+                className="px-4 py-2 text-xs font-medium bg-[#d4af7a] text-[#0a1628] rounded-lg hover:opacity-90">Sauvegarder</button>
             </div>
           </div>
         </div>

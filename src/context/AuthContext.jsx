@@ -1,19 +1,48 @@
-import { createContext, useContext } from "react";
-import { useAuth0 } from "@auth0/auth0-react";
+import { createContext, useContext, useState } from "react";
+import users from "../data/users";
 
 const AuthContext = createContext();
 
-const NAMESPACE = "https://monassociation.com";
-
 export function AuthProvider({ children }) {
-  const { user, isAuthenticated, isLoading, loginWithRedirect, logout } = useAuth0();
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem("auth_user");
+    return saved ? JSON.parse(saved) : null;
+  });
 
-  const roles = user?.[`${NAMESPACE}/roles`] || [];
-  const isAdmin = roles.includes("admin");
-  const isResponsable = roles.includes("responsable") || isAdmin;
+  function login(email, password) {
+    // Comptes dynamiques (membres ajoutés via l'interface)
+    const dynamicUsers = JSON.parse(
+      localStorage.getItem("association_users") || "[]"
+    );
+
+    // Fusionner avec les comptes fixes (admin)
+    const allUsers = [...users, ...dynamicUsers];
+
+    const found = allUsers.find(
+      (u) => u.email === email && u.password === password
+    );
+
+    if (found) {
+      const { password: _, ...safeUser } = found;
+      setUser(safeUser);
+      localStorage.setItem("auth_user", JSON.stringify(safeUser));
+      return true;
+    }
+    return false;
+  }
+
+  function logout() {
+    setUser(null);
+    localStorage.removeItem("auth_user");
+  }
+
+  const isAdmin = user?.role === "admin";
+  const isResponsable = user?.role === "responsable" || isAdmin;
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, isAdmin, isResponsable, loginWithRedirect, logout }}>
+    <AuthContext.Provider
+      value={{ user, login, logout, isAdmin, isResponsable, isAuthenticated: !!user }}
+    >
       {children}
     </AuthContext.Provider>
   );

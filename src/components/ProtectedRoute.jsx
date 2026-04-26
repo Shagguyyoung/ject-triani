@@ -1,30 +1,24 @@
 import { useAuth } from "../context/AuthContext";
+import { Navigate } from "react-router-dom";
 
-export default function ProtectedRoute({ children, adminOnly = false }) {
-  const { isAuthenticated, isLoading, isAdmin, isResponsable, loginWithRedirect } = useAuth();
+export default function ProtectedRoute({ children, adminOnly = false, responsableOnly = false }) {
+  const { isAuthenticated, isAdmin, isResponsable } = useAuth();
 
-  if (isLoading) return (
-    <div className="min-h-screen bg-[#0a1628] flex items-center justify-center">
-      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#d4af7a]" />
-    </div>
-  );
-
-  if (!isAuthenticated) {
-    loginWithRedirect();
-    return null;
-  }
+  if (!isAuthenticated) return <Navigate to="/login" />;
 
   if (adminOnly && !isAdmin) return (
-    <div className="min-h-screen bg-[#0a1628] flex flex-col items-center justify-center gap-3">
+    <div className="min-h-screen bg-[#0a1628] flex flex-col items-center justify-center gap-3"
+      style={{ fontFamily: "'Montserrat', sans-serif" }}>
       <p className="text-2xl text-[#f0e8d6]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
         Accès refusé
       </p>
-      <p className="text-sm text-[#8899aa]">Vous n'avez pas les droits nécessaires.</p>
+      <p className="text-sm text-[#8899aa]">Cette section est réservée aux administrateurs.</p>
     </div>
   );
 
-  if (!isResponsable) return (
-    <div className="min-h-screen bg-[#0a1628] flex flex-col items-center justify-center gap-3">
+  if (responsableOnly && !isResponsable) return (
+    <div className="min-h-screen bg-[#0a1628] flex flex-col items-center justify-center gap-3"
+      style={{ fontFamily: "'Montserrat', sans-serif" }}>
       <p className="text-2xl text-[#f0e8d6]" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
         Accès refusé
       </p>

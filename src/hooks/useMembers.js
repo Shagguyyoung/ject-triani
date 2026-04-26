@@ -19,5 +19,5 @@ export function useMembers() {
     setMembres((prev) => prev.map((m) => (m.id === id ? { ...m, statut } : m)));
   }
 
-  return { membres, ajouterMembre: ajouter, supprimerMembre: supprimer, modifierStatut };
+  return { membres, setMembres, ajouterMembre: ajouter, supprimerMembre: supprimer, modifierStatut };
 }
