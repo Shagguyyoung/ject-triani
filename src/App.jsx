@@ -6,6 +6,8 @@ import Dashboard from "./pages/Dashboard";
 import Membres from "./pages/Membres";
 import Cotisations from "./pages/Cotisations";
 import EspaceMembre from "./pages/EspaceMembre";
+import Evenements from "./pages/Evenements";
+import PageWrapper from "./components/PageWrapper";
 
 // ─── Navbar Admin/Responsable ───────────────────────
 function Navbar() {
@@ -15,6 +17,7 @@ function Navbar() {
     { to: "/", label: "Dashboard", show: true },
     { to: "/membres", label: "Membres", show: isAdmin },
     { to: "/cotisations", label: "Cotisations", show: isResponsable },
+    { to: "/evenements", label: "Événements", show: isAdmin },
   ];
 
   return (
@@ -55,8 +58,12 @@ function MembreNavbar() {
   const { user, logout } = useAuth();
 
   return (
-    <nav className="bg-[#0d1e38] border-b border-[#d4af7a22] px-6 py-3.5 flex justify-between items-center"
-      style={{ fontFamily: "'Montserrat', sans-serif" }}>
+    // Dans Navbar, wrappez le nav
+<motion.nav
+  initial={{ opacity: 0, y: -20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.4 }}
+  className="bg-[#0d1e38] border-b border-[#d4af7a22] px-6 py-3.5 flex justify-between items-center">
       <span className="text-[#f0e8d6] text-xl"
         style={{ fontFamily: "'Cormorant Garamond', serif" }}>
         JECT-TRIANI
@@ -71,7 +78,7 @@ function MembreNavbar() {
           {user?.nom?.[0]?.toUpperCase() ?? "?"}
         </button>
       </div>
-    </nav>
+    </motion.nav>
   );
 }
 
@@ -96,11 +103,31 @@ function AppContent() {
     <>
       <Navbar />
       <Routes>
-        <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/membres" element={<ProtectedRoute adminOnly><Membres /></ProtectedRoute>} />
-        <Route path="/cotisations" element={<ProtectedRoute><Cotisations /></ProtectedRoute>} />
-        <Route path="/mon-espace" element={<ProtectedRoute><EspaceMembre /></ProtectedRoute>} />
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="/" element={
+  <ProtectedRoute>
+    <PageWrapper><Dashboard /></PageWrapper>
+  </ProtectedRoute>
+} />
+<Route path="/membres" element={
+  <ProtectedRoute adminOnly>
+    <PageWrapper><Membres /></PageWrapper>
+  </ProtectedRoute>
+} />
+<Route path="/cotisations" element={
+  <ProtectedRoute>
+    <PageWrapper><Cotisations /></PageWrapper>
+  </ProtectedRoute>
+} />
+<Route path="/evenements" element={
+  <ProtectedRoute>
+    <PageWrapper><Evenements /></PageWrapper>
+  </ProtectedRoute>
+} />
+<Route path="/mon-espace" element={
+  <ProtectedRoute>
+    <PageWrapper><EspaceMembre /></PageWrapper>
+  </ProtectedRoute>
+} />
       </Routes>
     </>
   );

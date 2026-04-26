@@ -1,7 +1,10 @@
 import db from "./db.json";
+import defaultEvents from "./events";
+
 
 const KEY = "association_db";
 const USERS_KEY = "association_users";
+const EVENTS_KEY = "association_events";
 
 function getDB() {
   const saved = localStorage.getItem(KEY);
@@ -110,4 +113,22 @@ export function getStats() {
       .reduce((s, c) => s + c.montant, 0),
     totalAttendu: data.cotisations.reduce((s, c) => s + c.montant, 0),
   };
+}
+
+export function getEvents() {
+  const saved = localStorage.getItem(EVENTS_KEY);
+  return saved ? JSON.parse(saved) : defaultEvents;
+}
+
+export function ajouterEvent(form) {
+  const events = getEvents();
+  const nouveau = { ...form, id: generateId(1) };
+  const updated = [nouveau, ...events];
+  localStorage.setItem(EVENTS_KEY, JSON.stringify(updated));
+  return nouveau;
+}
+
+export function supprimerEvent(id) {
+  const updated = getEvents().filter((e) => e.id !== id);
+  localStorage.setItem(EVENTS_KEY, JSON.stringify(updated));
 }

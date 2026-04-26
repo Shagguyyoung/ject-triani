@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useCotisations } from "../hooks/useCotisations";
 import { useMembers } from "../hooks/useMembers";
+import { exportCotisationsPDF, exportCotisationsExcel } from "../utils/export";
 
 const badge = {
   ok: { label: "Payé", cls: "bg-green-950 text-green-400" },
@@ -196,6 +197,21 @@ export default function Cotisations() {
               {f.label}
             </button>
           ))}
+
+          <div className="flex gap-2 ml-auto">
+  <button
+    onClick={() => exportCotisationsPDF(cotisations)}
+    className="text-xs px-3 py-2 rounded-lg border border-[#d4af7a22] text-[#d4af7a] hover:bg-[#d4af7a11] transition"
+  >
+    PDF ↓
+  </button>
+  <button
+    onClick={() => exportCotisationsExcel(cotisations)}
+    className="text-xs px-3 py-2 rounded-lg border border-[#d4af7a22] text-[#d4af7a] hover:bg-[#d4af7a11] transition"
+  >
+    Excel ↓
+  </button>
+</div>
         </div>
 
         {/* Tableau */}

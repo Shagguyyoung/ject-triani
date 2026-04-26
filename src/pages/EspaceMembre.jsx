@@ -1,6 +1,5 @@
 import { useAuth } from "../context/AuthContext";
-import { getCotisations } from "../data/store";
-import events from "../data/events";
+import { getCotisations, getEvents } from "../data/store";
 
 const badge = {
   ok: { label: "Payé", cls: "bg-green-950 text-green-400" },
@@ -13,7 +12,6 @@ const eventBadge = {
   sport: "bg-green-950 text-green-400",
   social: "bg-purple-950 text-purple-400",
 };
-
 const eventLabel = { ag: "AG", sport: "Sport", social: "Social" };
 
 function getDay(date) { return new Date(date).getDate(); }
@@ -26,14 +24,11 @@ export default function EspaceMembre() {
 
   const toutes = getCotisations();
   const mesCotisations = toutes.filter((c) => c.membre_id === user?.membre_id);
+  const events = getEvents();
 
-  const totalPaye = mesCotisations
-    .filter((c) => c.statut === "ok")
-    .reduce((s, c) => s + (c.montant || 0), 0);
+  const totalPaye = mesCotisations.filter((c) => c.statut === "ok").reduce((s, c) => s + (c.montant || 0), 0);
   const totalAttendu = mesCotisations.reduce((s, c) => s + (c.montant || 0), 0);
-  const totalEnAttente = mesCotisations
-    .filter((c) => c.statut !== "ok")
-    .reduce((s, c) => s + (c.montant || 0), 0);
+  const totalEnAttente = mesCotisations.filter((c) => c.statut !== "ok").reduce((s, c) => s + (c.montant || 0), 0);
   const taux = totalAttendu > 0 ? Math.round((totalPaye / totalAttendu) * 100) : 0;
 
   const eventsAVenir = events
@@ -47,7 +42,7 @@ export default function EspaceMembre() {
         <p className="text-xs text-[#8899aa] mb-1">Bienvenue,</p>
         <h1 className="text-3xl font-medium text-[#f0e8d6] mb-6"
           style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-          Mon espace membre
+          {user?.nom}
         </h1>
 
         {/* Stats */}
@@ -108,6 +103,9 @@ export default function EspaceMembre() {
         {/* Événements */}
         <p className="text-[10px] tracking-[.2em] uppercase text-[#d4af7a] mb-3">Événements à venir</p>
         <div className="flex flex-col gap-3">
+          {eventsAVenir.length === 0 && (
+            <p className="text-sm text-[#8899aa]">Aucun événement à venir.</p>
+          )}
           {eventsAVenir.map((e) => (
             <div key={e.id} className="bg-[#0d1e38] border border-[#d4af7a22] rounded-xl p-4 flex gap-4">
               <div className="flex flex-col items-center justify-center bg-[#d4af7a11] border border-[#d4af7a22] rounded-lg px-3 py-2 min-w-[52px] flex-shrink-0">
