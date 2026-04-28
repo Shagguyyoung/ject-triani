@@ -8,6 +8,7 @@ import Cotisations from "./pages/Cotisations";
 import EspaceMembre from "./pages/EspaceMembre";
 import Evenements from "./pages/Evenements";
 import PageWrapper from "./components/PageWrapper";
+import { motion } from "framer-motion";
 
 // ─── Navbar Admin/Responsable ───────────────────────
 function Navbar() {

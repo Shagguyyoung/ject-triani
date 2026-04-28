@@ -121,6 +121,7 @@ export default function Evenements() {
                   <option value="ag">Assemblée Générale</option>
                   <option value="sport">Sport</option>
                   <option value="social">Social</option>
+                  <option value="social">Reunion</option>
                 </select>
               </div>
             </div>
