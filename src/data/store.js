@@ -1,134 +1,128 @@
-import db from "./db.json";
-import defaultEvents from "./events";
+import { supabase } from "../supabase/client";
 
+// ─── MEMBRES ────────────────────────────────────────
 
-const KEY = "association_db";
-const USERS_KEY = "association_users";
-const EVENTS_KEY = "association_events";
-
-function getDB() {
-  const saved = localStorage.getItem(KEY);
-  return saved ? JSON.parse(saved) : db;
+export async function getMembres() {
+  const { data, error } = await supabase
+    .from("membres")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) { console.error("getMembres:", error); return []; }
+  return data;
 }
 
-function saveDB(data) {
-  localStorage.setItem(KEY, JSON.stringify(data));
-}
+export async function ajouterMembre(form) {
+  const { data, error } = await supabase
+    .from("membres")
+    .insert([{ ...form }])
+    .select()
+    .single();
+  if (error) { console.error("ajouterMembre:", error); return null; }
 
-function generateId() {
-  return Date.now().toString();
-}
-
-export function getMembres() {
-  return getDB().membres;
-}
-
-export function ajouterMembre(form) {
-  const data = getDB();
-  const nouveau = {
-    ...form,
-    id: generateId(),
-    created_at: new Date().toISOString().split("T")[0],
-  };
-  data.membres = [nouveau, ...data.membres];
-  saveDB(data);
-
-  // Créer automatiquement un compte si email fourni
+  // Créer compte membre localement
   if (form.email) {
-    const comptes = JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
+    const comptes = JSON.parse(localStorage.getItem("association_users") || "[]");
     const existe = comptes.find((u) => u.email === form.email);
     if (!existe) {
-      comptes.push({  
+      comptes.push({
         email: form.email,
         password: "ject2025",
         role: "membre",
         nom: form.nom,
-        membre_id: nouveau.id,
+        membre_id: data.id,
       });
-      localStorage.setItem(USERS_KEY, JSON.stringify(comptes));
+      localStorage.setItem("association_users", JSON.stringify(comptes));
     }
   }
 
-  return nouveau;
+  return data;
 }
 
-export function supprimerMembre(id) {
-  const data = getDB();
-  data.membres = data.membres.filter((m) => m.id !== id);
-  data.cotisations = data.cotisations.filter((c) => c.membre_id !== id);
-  saveDB(data);
-
-  // Supprimer aussi le compte associé
-  const membre = getDB().membres.find((m) => m.id === id);
-  if (membre?.email) {
-    const comptes = JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
-    localStorage.setItem(
-      USERS_KEY,
-      JSON.stringify(comptes.filter((u) => u.email !== membre.email))
-    );
-  }
+export async function supprimerMembre(id) {
+  const { error } = await supabase.from("membres").delete().eq("id", id);
+  if (error) console.error("supprimerMembre:", error);
 }
 
-export function modifierMembre(id, updates) {
-  const data = getDB();
-  data.membres = data.membres.map((m) => (m.id === id ? { ...m, ...updates } : m));
-  saveDB(data);
+export async function modifierMembre(id, updates) {
+  const { error } = await supabase.from("membres").update(updates).eq("id", id);
+  if (error) console.error("modifierMembre:", error);
 }
 
-export function getCotisations() {
-  const data = getDB();
-  return data.cotisations.map((c) => ({
-    ...c,
-    membre: data.membres.find((m) => m.id === c.membre_id) || {},
-  }));
+// ─── COTISATIONS ────────────────────────────────────
+
+export async function getCotisations() {
+  const { data, error } = await supabase
+    .from("cotisations")
+    .select("*, membre:membres(id, nom, role, tel, email, statut)")
+    .order("created_at", { ascending: false });
+  if (error) { console.error("getCotisations:", error); return []; }
+  return data;
 }
 
-export function marquerPaye(id) {
-  const data = getDB();
-  data.cotisations = data.cotisations.map((c) =>
-    c.id === id
-      ? { ...c, statut: "ok", date_paiement: new Date().toISOString().split("T")[0] }
-      : c
-  );
-  saveDB(data);
+export async function ajouterCotisation(form) {
+  const { data, error } = await supabase
+    .from("cotisations")
+    .insert([{ ...form }])
+    .select("*, membre:membres(id, nom, role)")
+    .single();
+  if (error) { console.error("ajouterCotisation:", error); return null; }
+  return data;
 }
 
-export function ajouterCotisation(form) {
-  const data = getDB();
-  const nouvelle = { ...form, id: generateId() };
-  data.cotisations = [nouvelle, ...data.cotisations];
-  saveDB(data);
-  return nouvelle;
+export async function marquerPaye(id) {
+  const { error } = await supabase
+    .from("cotisations")
+    .update({
+      statut: "ok",
+      date_paiement: new Date().toISOString().split("T")[0],
+    })
+    .eq("id", id);
+  if (error) console.error("marquerPaye:", error);
 }
 
-export function getStats() {
-  const data = getDB();
+// ─── STATS ──────────────────────────────────────────
+
+export async function getStats() {
+  const [{ data: membres }, { data: cotisations }] = await Promise.all([
+    supabase.from("membres").select("statut"),
+    supabase.from("cotisations").select("statut, montant"),
+  ]);
+
+  const m = membres || [];
+  const c = cotisations || [];
+
   return {
-    total: data.membres.length,
-    aJour: data.membres.filter((m) => m.statut === "ok").length,
-    enAttente: data.membres.filter((m) => m.statut === "pending").length,
-    enRetard: data.membres.filter((m) => m.statut === "late").length,
-    totalPaye: data.cotisations
-      .filter((c) => c.statut === "ok")
-      .reduce((s, c) => s + c.montant, 0),
-    totalAttendu: data.cotisations.reduce((s, c) => s + c.montant, 0),
+    total: m.length,
+    aJour: m.filter((x) => x.statut === "ok").length,
+    enAttente: m.filter((x) => x.statut === "pending").length,
+    enRetard: m.filter((x) => x.statut === "late").length,
+    totalPaye: c.filter((x) => x.statut === "ok").reduce((s, x) => s + (x.montant || 0), 0),
+    totalAttendu: c.reduce((s, x) => s + (x.montant || 0), 0),
   };
 }
 
-export function getEvents() {
-  const saved = localStorage.getItem(EVENTS_KEY);
-  return saved ? JSON.parse(saved) : defaultEvents;
+// ─── EVENTS ─────────────────────────────────────────
+
+export async function getEvents() {
+  const { data, error } = await supabase
+    .from("events")
+    .select("*")
+    .order("date", { ascending: true });
+  if (error) { console.error("getEvents:", error); return []; }
+  return data;
 }
 
-export function ajouterEvent(form) {
-  const events = getEvents();
-  const nouveau = { ...form, id: generateId(1) };
-  const updated = [nouveau, ...events];
-  localStorage.setItem(EVENTS_KEY, JSON.stringify(updated));
-  return nouveau;
+export async function ajouterEvent(form) {
+  const { data, error } = await supabase
+    .from("events")
+    .insert([{ ...form }])
+    .select()
+    .single();
+  if (error) { console.error("ajouterEvent:", error); return null; }
+  return data;
 }
 
-export function supprimerEvent(id) {
-  const updated = getEvents().filter((e) => e.id !== id);
-  localStorage.setItem(EVENTS_KEY, JSON.stringify(updated));
+export async function supprimerEvent(id) {
+  const { error } = await supabase.from("events").delete().eq("id", id);
+  if (error) console.error("supprimerEvent:", error);
 }
