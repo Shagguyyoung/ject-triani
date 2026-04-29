@@ -6,7 +6,7 @@ const eventBadge = {
   sport: "bg-green-950 text-green-400",
   social: "bg-purple-950 text-purple-400",
 };
-const eventLabel = { ag: "AG", sport: "Sport", social: "Social" };
+const eventLabel = { ag: "AG", sport: "Sport", social: "Social", R: "Reunion" };
 
 function getDay(date) { return new Date(date).getDate(); }
 function getMonth(date) {
