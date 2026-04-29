@@ -8,13 +8,24 @@ const eventBadge = {
 };
 const eventLabel = { ag: "AG", sport: "Sport", social: "Social", R: "Reunion" };
 
-function getDay(date) { return new Date(date).getDate(); }
+function getDay(date) { 
+  if (!date) return "?";
+  return new Date(date).getDate(); 
+}
+
 function getMonth(date) {
+  if (!date) return "?";
   return new Date(date).toLocaleString("fr-FR", { month: "short" });
 }
 
 export default function Evenements() {
-  const [events, setEvents] = useState(() => getEvents());
+  // ✅ Sécurisation : s'assurer que getEvents() retourne un tableau
+  const initialEvents = () => {
+    const result = getEvents();
+    return Array.isArray(result) ? result : [];
+  };
+  
+  const [events, setEvents] = useState(initialEvents);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     titre: "", date: "", heure: "", lieu: "", type: "ag",
@@ -23,19 +34,35 @@ export default function Evenements() {
   const handleAjouter = () => {
     if (!form.titre.trim() || !form.date) return;
     const nouveau = ajouterEvent(form);
-    setEvents((prev) => [nouveau, ...prev]);
+    // ✅ Sécurisation : s'assurer que prev est un tableau et que nouveau existe
+    setEvents((prev) => {
+      const prevArray = Array.isArray(prev) ? prev : [];
+      if (!nouveau) return prevArray;
+      return [nouveau, ...prevArray];
+    });
     setForm({ titre: "", date: "", heure: "", lieu: "", type: "ag" });
     setShowForm(false);
   };
 
   const handleSupprimer = (id) => {
     supprimerEvent(id);
-    setEvents((prev) => prev.filter((e) => e.id !== id));
+    // ✅ Sécurisation : s'assurer que prev est un tableau
+    setEvents((prev) => {
+      const prevArray = Array.isArray(prev) ? prev : [];
+      return prevArray.filter((e) => e.id !== id);
+    });
   };
 
-  const aVenir = events.filter((e) => new Date(e.date) >= new Date())
+  // ✅ Sécurisation : s'assurer que events est un tableau
+  const eventsArray = Array.isArray(events) ? events : [];
+  
+  // ✅ Sécurisation des filtres
+  const aVenir = eventsArray
+    .filter((e) => e.date && new Date(e.date) >= new Date())
     .sort((a, b) => new Date(a.date) - new Date(b.date));
-  const passes = events.filter((e) => new Date(e.date) < new Date())
+    
+  const passes = eventsArray
+    .filter((e) => e.date && new Date(e.date) < new Date())
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const fields = [
@@ -57,15 +84,15 @@ export default function Evenements() {
         </span>
       </div>
       <div className="flex-1">
-        <p className="text-sm text-[#f0e8d6] font-medium mb-1">{e.titre}</p>
-        <p className="text-[11px] text-[#8899aa] mb-2">{e.heure} · {e.lieu}</p>
-        <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${eventBadge[e.type]}`}>
-          {eventLabel[e.type]}
+        <p className="text-sm text-[#f0e8d6] font-medium mb-1">{e.titre || "Sans titre"}</p>
+        <p className="text-[11px] text-[#8899aa] mb-2">{e.heure || "—"} · {e.lieu || "—"}</p>
+        <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${eventBadge[e.type] || "bg-gray-950 text-gray-400"}`}>
+          {eventLabel[e.type] || e.type || "?"}
         </span>
       </div>
       <button
         onClick={() => handleSupprimer(e.id)}
-        className="text-[11px] px-2.5 py-1 rounded-md bg-[#f8717111] border border-[#f8717122] text-red-400 self-start flex-shrink-0"
+        className="text-[11px] px-2.5 py-1 rounded-md bg-[#f8717111] border border-[#f8717122] text-red-400 self-start flex-shrink-0 hover:bg-red-950/30 transition"
       >
         Supprimer
       </button>
@@ -105,9 +132,9 @@ export default function Evenements() {
                   <input
                     type={f.type}
                     placeholder={f.placeholder}
-                    value={form[f.key]}
+                    value={form[f.key] || ""}
                     onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                    className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] placeholder-[#445566] outline-none"
+                    className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] placeholder-[#445566] outline-none focus:border-[#d4af7a]"
                   />
                 </div>
               ))}
@@ -116,22 +143,22 @@ export default function Evenements() {
                 <select
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value })}
-                  className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] outline-none"
+                  className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] outline-none focus:border-[#d4af7a]"
                 >
                   <option value="ag">Assemblée Générale</option>
                   <option value="sport">Sport</option>
                   <option value="social">Social</option>
-                  <option value="social">Reunion</option>
+                  <option value="R">Réunion</option>
                 </select>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-2">
               <button onClick={() => setShowForm(false)}
-                className="px-4 py-2 text-xs text-[#8899aa] border border-[#d4af7a22] rounded-lg">
+                className="px-4 py-2 text-xs text-[#8899aa] border border-[#d4af7a22] rounded-lg hover:bg-[#d4af7a11] transition">
                 Annuler
               </button>
               <button onClick={handleAjouter}
-                className="px-4 py-2 text-xs font-medium bg-[#d4af7a] text-[#0a1628] rounded-lg hover:opacity-90">
+                className="px-4 py-2 text-xs font-medium bg-[#d4af7a] text-[#0a1628] rounded-lg hover:opacity-90 transition">
                 Enregistrer
               </button>
             </div>
@@ -141,7 +168,7 @@ export default function Evenements() {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label: "Total", val: events.length, cls: "text-[#f0e8d6]" },
+            { label: "Total", val: eventsArray.length, cls: "text-[#f0e8d6]" },
             { label: "À venir", val: aVenir.length, cls: "text-[#d4af7a]" },
             { label: "Passés", val: passes.length, cls: "text-[#8899aa]" },
           ].map((s) => (

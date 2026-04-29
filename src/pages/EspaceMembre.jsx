@@ -22,18 +22,40 @@ function getMonth(date) {
 export default function EspaceMembre() {
   const { user } = useAuth();
 
-  const toutes = getCotisations();
-  const mesCotisations = toutes.filter((c) => c.membre_id === user?.membre_id);
-  const events = getEvents();
+  // ✅ Sécurisation : s'assurer que getCotisations() retourne un tableau
+  const toutes = Array.isArray(getCotisations()) ? getCotisations() : [];
+  const mesCotisations = Array.isArray(toutes) 
+    ? toutes.filter((c) => c.membre_id === user?.membre_id) 
+    : [];
+  
+  // ✅ Sécurisation : s'assurer que getEvents() retourne un tableau
+  const eventsData = Array.isArray(getEvents()) ? getEvents() : [];
+  const events = eventsData;
 
-  const totalPaye = mesCotisations.filter((c) => c.statut === "ok").reduce((s, c) => s + (c.montant || 0), 0);
-  const totalAttendu = mesCotisations.reduce((s, c) => s + (c.montant || 0), 0);
-  const totalEnAttente = mesCotisations.filter((c) => c.statut !== "ok").reduce((s, c) => s + (c.montant || 0), 0);
+  // ✅ Calculs sécurisés avec valeurs par défaut
+  const totalPaye = Array.isArray(mesCotisations) 
+    ? mesCotisations.filter((c) => c.statut === "ok").reduce((s, c) => s + (c.montant || 0), 0)
+    : 0;
+    
+  const totalAttendu = Array.isArray(mesCotisations) 
+    ? mesCotisations.reduce((s, c) => s + (c.montant || 0), 0)
+    : 0;
+    
+  const totalEnAttente = Array.isArray(mesCotisations) 
+    ? mesCotisations.filter((c) => c.statut !== "ok").reduce((s, c) => s + (c.montant || 0), 0)
+    : 0;
+    
   const taux = totalAttendu > 0 ? Math.round((totalPaye / totalAttendu) * 100) : 0;
 
-  const eventsAVenir = events
-    .filter((e) => new Date(e.date) >= new Date())
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  // ✅ Sécurisation des événements
+  const eventsAVenir = Array.isArray(events)
+    ? events
+        .filter((e) => new Date(e.date) >= new Date())
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+    : [];
+
+  // ✅ Vérification que user existe
+  const userNom = user?.nom || "Membre";
 
   return (
     <div className="min-h-screen bg-[#0a1628]" style={{ fontFamily: "'Montserrat', sans-serif" }}>
@@ -42,7 +64,7 @@ export default function EspaceMembre() {
         <p className="text-xs text-[#8899aa] mb-1">Bienvenue,</p>
         <h1 className="text-3xl font-medium text-[#f0e8d6] mb-6"
           style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-          {user?.nom}
+          {userNom}
         </h1>
 
         {/* Stats */}
@@ -66,7 +88,7 @@ export default function EspaceMembre() {
           <div className="flex justify-between text-xs text-[#8899aa] mb-2">
             <span>Cotisations payées</span>
             <span className="text-[#d4af7a]">
-              {mesCotisations.filter((c) => c.statut === "ok").length} / {mesCotisations.length} mois
+              {Array.isArray(mesCotisations) ? mesCotisations.filter((c) => c.statut === "ok").length : 0} / {Array.isArray(mesCotisations) ? mesCotisations.length : 0} mois
             </span>
           </div>
           <div className="h-1.5 bg-[#d4af7a11] rounded-full overflow-hidden">
@@ -77,25 +99,26 @@ export default function EspaceMembre() {
         {/* Historique */}
         <p className="text-[10px] tracking-[.2em] uppercase text-[#d4af7a] mb-3">Historique des cotisations</p>
         <div className="flex flex-col gap-2 mb-8">
-          {mesCotisations.length === 0 && (
+          {!Array.isArray(mesCotisations) || mesCotisations.length === 0 ? (
             <p className="text-sm text-[#8899aa]">Aucune cotisation enregistrée.</p>
-          )}
-          {mesCotisations.map((c) => (
-            <div key={c.id} className="bg-[#0d1e38] border border-[#d4af7a22] rounded-xl px-4 py-3 flex items-center gap-3">
-              <div className="flex-1">
-                <p className="text-sm text-[#f0e8d6] font-medium">{c.mois}</p>
-                <p className="text-[11px] text-[#8899aa]">
-                  {c.date_paiement ? `Payé le ${c.date_paiement}` : `Échéance : ${c.date_echeance ?? "—"}`}
-                </p>
+          ) : (
+            mesCotisations.map((c) => (
+              <div key={c.id} className="bg-[#0d1e38] border border-[#d4af7a22] rounded-xl px-4 py-3 flex items-center gap-3">
+                <div className="flex-1">
+                  <p className="text-sm text-[#f0e8d6] font-medium">{c.mois || "Mois inconnu"}</p>
+                  <p className="text-[11px] text-[#8899aa]">
+                    {c.date_paiement ? `Payé le ${c.date_paiement}` : `Échéance : ${c.date_echeance ?? "—"}`}
+                  </p>
+                </div>
+                <span className={`text-sm font-medium mr-2 ${c.statut === "ok" ? "text-green-400" : "text-amber-400"}`}>
+                  {c.montant?.toLocaleString()} F
+                </span>
+                <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${badge[c.statut]?.cls || "bg-gray-950 text-gray-400"}`}>
+                  {badge[c.statut]?.label || c.statut}
+                </span>
               </div>
-              <span className={`text-sm font-medium mr-2 ${c.statut === "ok" ? "text-green-400" : "text-amber-400"}`}>
-                {c.montant?.toLocaleString()} F
-              </span>
-              <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${badge[c.statut]?.cls}`}>
-                {badge[c.statut]?.label}
-              </span>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
         <div className="h-px bg-[#d4af7a22] mb-6" />
@@ -103,29 +126,30 @@ export default function EspaceMembre() {
         {/* Événements */}
         <p className="text-[10px] tracking-[.2em] uppercase text-[#d4af7a] mb-3">Événements à venir</p>
         <div className="flex flex-col gap-3">
-          {eventsAVenir.length === 0 && (
+          {eventsAVenir.length === 0 ? (
             <p className="text-sm text-[#8899aa]">Aucun événement à venir.</p>
+          ) : (
+            eventsAVenir.map((e) => (
+              <div key={e.id} className="bg-[#0d1e38] border border-[#d4af7a22] rounded-xl p-4 flex gap-4">
+                <div className="flex flex-col items-center justify-center bg-[#d4af7a11] border border-[#d4af7a22] rounded-lg px-3 py-2 min-w-[52px] flex-shrink-0">
+                  <span className="text-xl text-[#d4af7a] font-medium leading-none"
+                    style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+                    {getDay(e.date)}
+                  </span>
+                  <span className="text-[10px] tracking-widest uppercase text-[#8899aa] mt-1">
+                    {getMonth(e.date)}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm text-[#f0e8d6] font-medium mb-1">{e.titre || "Sans titre"}</p>
+                  <p className="text-[11px] text-[#8899aa] mb-2">{e.heure || "—"} · {e.lieu || "—"}</p>
+                  <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${eventBadge[e.type] || "bg-gray-950 text-gray-400"}`}>
+                    {eventLabel[e.type] || e.type}
+                  </span>
+                </div>
+              </div>
+            ))
           )}
-          {eventsAVenir.map((e) => (
-            <div key={e.id} className="bg-[#0d1e38] border border-[#d4af7a22] rounded-xl p-4 flex gap-4">
-              <div className="flex flex-col items-center justify-center bg-[#d4af7a11] border border-[#d4af7a22] rounded-lg px-3 py-2 min-w-[52px] flex-shrink-0">
-                <span className="text-xl text-[#d4af7a] font-medium leading-none"
-                  style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-                  {getDay(e.date)}
-                </span>
-                <span className="text-[10px] tracking-widest uppercase text-[#8899aa] mt-1">
-                  {getMonth(e.date)}
-                </span>
-              </div>
-              <div>
-                <p className="text-sm text-[#f0e8d6] font-medium mb-1">{e.titre}</p>
-                <p className="text-[11px] text-[#8899aa] mb-2">{e.heure} · {e.lieu}</p>
-                <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${eventBadge[e.type]}`}>
-                  {eventLabel[e.type]}
-                </span>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>

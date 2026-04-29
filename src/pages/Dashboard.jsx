@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, fadeIn } from "../utils/animations";
 
 function initials(nom) {
+  // ✅ Sécurisation : vérifier que nom existe et est une chaîne
+  if (!nom || typeof nom !== 'string') return "?";
   return nom.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
@@ -16,31 +18,51 @@ const badgeLabel = { ok: "À jour", pending: "En attente", late: "En retard" };
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const stats = getStats();
-  const cotisations = getCotisations();
-  const membres = getMembres();
+  
+  // ✅ Sécurisation : s'assurer que les fonctions retournent des valeurs valides
+  const statsRaw = getStats();
+  const stats = {
+    total: statsRaw?.total || 0,
+    aJour: statsRaw?.aJour || 0,
+    enAttente: statsRaw?.enAttente || 0,
+    enRetard: statsRaw?.enRetard || 0,
+    totalPaye: statsRaw?.totalPaye || 0,
+    totalAttendu: statsRaw?.totalAttendu || 0
+  };
+  
+  // ✅ Sécurisation : s'assurer que cotisations est un tableau
+  const cotisationsRaw = getCotisations();
+  const cotisations = Array.isArray(cotisationsRaw) ? cotisationsRaw : [];
+  
+  // ✅ Sécurisation : s'assurer que membres est un tableau
+  const membresRaw = getMembres();
+  const membres = Array.isArray(membresRaw) ? membresRaw : [];
 
   const tauxAJour = stats.total > 0 ? Math.round((stats.aJour / stats.total) * 100) : 0;
   const tauxAttente = stats.total > 0 ? Math.round((stats.enAttente / stats.total) * 100) : 0;
   const tauxRetard = stats.total > 0 ? Math.round((stats.enRetard / stats.total) * 100) : 0;
 
   const circumference = 2 * Math.PI * 40;
-  const arcAJour = (stats.aJour / stats.total) * circumference || 0;
-  const arcAttente = (stats.enAttente / stats.total) * circumference || 0;
-  const arcRetard = (stats.enRetard / stats.total) * circumference || 0;
+  const arcAJour = stats.total > 0 ? (stats.aJour / stats.total) * circumference : 0;
+  const arcAttente = stats.total > 0 ? (stats.enAttente / stats.total) * circumference : 0;
+  const arcRetard = stats.total > 0 ? (stats.enRetard / stats.total) * circumference : 0;
 
+  // ✅ Sécurisation : créer une copie avant de reverse()
   const derniersMembres = [...membres].reverse().slice(0, 4);
 
   const moisNoms = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
 
+  // ✅ Sécurisation : vérifier que cotisations est un tableau
   const participationParMois = moisNoms.map((label, i) => {
-    const cotDuMois = cotisations.filter((c) => {
-      const date = c.date_paiement || c.date_echeance;
-      if (!date) return false;
-      return new Date(date).getMonth() === i;
-    });
-    const payees = cotDuMois.filter((c) => c.statut === "ok").length;
+    const cotDuMois = Array.isArray(cotisations) 
+      ? cotisations.filter((c) => {
+          const date = c?.date_paiement || c?.date_echeance;
+          if (!date) return false;
+          return new Date(date).getMonth() === i;
+        })
+      : [];
+    const payees = cotDuMois.filter((c) => c?.statut === "ok").length;
     const total = cotDuMois.length;
     return { label, pct: total > 0 ? Math.round((payees / total) * 100) : 0, total };
   }).filter((m) => m.total > 0);
@@ -55,6 +77,9 @@ export default function Dashboard() {
   const tauxCollecte = stats.totalAttendu > 0
     ? Math.round((stats.totalPaye / stats.totalAttendu) * 100) : 0;
 
+  // ✅ Sécurisation pour user?.nom
+  const userName = user?.nom || "Utilisateur";
+
   return (
     <motion.div {...fadeIn}
       className="min-h-screen bg-[#0a1628]"
@@ -66,7 +91,7 @@ export default function Dashboard() {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4 }}>
-          <p className="text-xs tracking-widest text-[#8899aa] mb-1">Bonjour, {user?.nom}</p>
+          <p className="text-xs tracking-widest text-[#8899aa] mb-1">Bonjour, {userName}</p>
           <h1 className="text-3xl font-medium text-[#f0e8d6] mb-5"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}>
             Vue d'ensemble
@@ -212,11 +237,11 @@ export default function Dashboard() {
                   {initials(m.nom)}
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-[#f0e8d6]">{m.nom}</p>
-                  <p className="text-[11px] text-[#8899aa]">{m.role}</p>
+                  <p className="text-sm font-medium text-[#f0e8d6]">{m.nom || "Inconnu"}</p>
+                  <p className="text-[11px] text-[#8899aa]">{m.role || "Membre"}</p>
                 </div>
-                <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium ${badgeStyle[m.statut]}`}>
-                  {badgeLabel[m.statut]}
+                <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium ${badgeStyle[m.statut] || "bg-gray-950 text-gray-400"}`}>
+                  {badgeLabel[m.statut] || m.statut || "?"}
                 </span>
               </motion.div>
             ))}
