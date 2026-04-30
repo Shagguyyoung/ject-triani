@@ -1,68 +1,66 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getEvents, ajouterEvent, supprimerEvent } from "../data/store";
 
 const eventBadge = {
   ag: "bg-blue-950 text-blue-400",
   sport: "bg-green-950 text-green-400",
   social: "bg-purple-950 text-purple-400",
+  R: "bg-yellow-950 text-yellow-400",
 };
-const eventLabel = { ag: "AG", sport: "Sport", social: "Social", R: "Reunion" };
 
-function getDay(date) { 
-  if (!date) return "?";
-  return new Date(date).getDate(); 
+const eventLabel = {
+  ag: "AG",
+  sport: "Sport",
+  social: "Social",
+  R: "Reunion",
+};
+
+function getDay(date) {
+  return new Date(date).getDate();
 }
 
 function getMonth(date) {
-  if (!date) return "?";
   return new Date(date).toLocaleString("fr-FR", { month: "short" });
 }
 
 export default function Evenements() {
-  // ✅ Sécurisation : s'assurer que getEvents() retourne un tableau
-  const initialEvents = () => {
-    const result = getEvents();
-    return Array.isArray(result) ? result : [];
-  };
-  
-  const [events, setEvents] = useState(initialEvents);
-  const [showForm, setShowForm] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false); // ✅ AJOUT
   const [form, setForm] = useState({
-    titre: "", date: "", heure: "", lieu: "", type: "ag",
+    titre: "",
+    date: "",
+    heure: "",
+    lieu: "",
+    type: "ag",
   });
+
+  useEffect(() => {
+    getEvents().then((data) => {
+      setEvents(data || []);
+      setLoading(false);
+    });
+  }, []);
 
   const handleAjouter = () => {
     if (!form.titre.trim() || !form.date) return;
     const nouveau = ajouterEvent(form);
-    // ✅ Sécurisation : s'assurer que prev est un tableau et que nouveau existe
-    setEvents((prev) => {
-      const prevArray = Array.isArray(prev) ? prev : [];
-      if (!nouveau) return prevArray;
-      return [nouveau, ...prevArray];
-    });
+    setEvents((prev) => [nouveau, ...prev]);
     setForm({ titre: "", date: "", heure: "", lieu: "", type: "ag" });
     setShowForm(false);
   };
 
   const handleSupprimer = (id) => {
     supprimerEvent(id);
-    // ✅ Sécurisation : s'assurer que prev est un tableau
-    setEvents((prev) => {
-      const prevArray = Array.isArray(prev) ? prev : [];
-      return prevArray.filter((e) => e.id !== id);
-    });
+    setEvents((prev) => prev.filter((e) => e.id !== id));
   };
 
-  // ✅ Sécurisation : s'assurer que events est un tableau
-  const eventsArray = Array.isArray(events) ? events : [];
-  
-  // ✅ Sécurisation des filtres
-  const aVenir = eventsArray
-    .filter((e) => e.date && new Date(e.date) >= new Date())
+  const aVenir = events
+    .filter((e) => new Date(e.date) >= new Date())
     .sort((a, b) => new Date(a.date) - new Date(b.date));
-    
-  const passes = eventsArray
-    .filter((e) => e.date && new Date(e.date) < new Date())
+
+  const passes = events
+    .filter((e) => new Date(e.date) < new Date())
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const fields = [
@@ -75,39 +73,58 @@ export default function Evenements() {
   const EventCard = ({ e }) => (
     <div className="bg-[#0d1e38] border border-[#d4af7a22] hover:border-[#d4af7a44] rounded-xl p-4 flex gap-4 transition">
       <div className="flex flex-col items-center justify-center bg-[#d4af7a11] border border-[#d4af7a22] rounded-lg px-3 py-2 min-w-[52px] flex-shrink-0">
-        <span className="text-xl text-[#d4af7a] font-medium leading-none"
-          style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+        <span
+          className="text-xl text-[#d4af7a] font-medium leading-none"
+          style={{ fontFamily: "'Cormorant Garamond', serif" }}
+        >
           {getDay(e.date)}
         </span>
         <span className="text-[10px] tracking-widest uppercase text-[#8899aa] mt-1">
           {getMonth(e.date)}
         </span>
       </div>
+
       <div className="flex-1">
-        <p className="text-sm text-[#f0e8d6] font-medium mb-1">{e.titre || "Sans titre"}</p>
-        <p className="text-[11px] text-[#8899aa] mb-2">{e.heure || "—"} · {e.lieu || "—"}</p>
-        <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${eventBadge[e.type] || "bg-gray-950 text-gray-400"}`}>
-          {eventLabel[e.type] || e.type || "?"}
+        <p className="text-sm text-[#f0e8d6] font-medium mb-1">{e.titre}</p>
+        <p className="text-[11px] text-[#8899aa] mb-2">
+          {e.heure} · {e.lieu}
+        </p>
+        <span
+          className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${
+            eventBadge[e.type]
+          }`}
+        >
+          {eventLabel[e.type]}
         </span>
       </div>
+
       <button
         onClick={() => handleSupprimer(e.id)}
-        className="text-[11px] px-2.5 py-1 rounded-md bg-[#f8717111] border border-[#f8717122] text-red-400 self-start flex-shrink-0 hover:bg-red-950/30 transition"
+        className="text-[11px] px-2.5 py-1 rounded-md bg-[#f8717111] border border-[#f8717122] text-red-400 self-start flex-shrink-0"
       >
         Supprimer
       </button>
     </div>
   );
 
+  if (loading) {
+    return (
+      <div className="text-white p-6">Chargement...</div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#0a1628]" style={{ fontFamily: "'Montserrat', sans-serif" }}>
       <div className="max-w-3xl mx-auto p-6">
 
         <div className="flex justify-between items-center mb-5">
-          <h1 className="text-3xl font-medium text-[#f0e8d6]"
-            style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+          <h1
+            className="text-3xl font-medium text-[#f0e8d6]"
+            style={{ fontFamily: "'Cormorant Garamond', serif" }}
+          >
             Événements
           </h1>
+
           <button
             onClick={() => setShowForm(!showForm)}
             className="bg-[#d4af7a] text-[#0a1628] text-xs font-medium px-4 py-2 rounded-lg hover:opacity-90 transition"
@@ -116,88 +133,84 @@ export default function Evenements() {
           </button>
         </div>
 
-        {/* Formulaire */}
         {showForm && (
           <div className="bg-[#0d1e38] border border-[#d4af7a22] rounded-xl p-6 mb-6">
-            <h2 className="text-xl text-[#f0e8d6] mb-4"
-              style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+            <h2 className="text-xl text-[#f0e8d6] mb-4">
               Nouvel événement
             </h2>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
               {fields.map((f) => (
                 <div key={f.key} className={f.key === "titre" ? "md:col-span-2" : ""}>
-                  <label className="block text-[10px] tracking-widest uppercase text-[#8899aa] mb-1.5">
+                  <label className="block text-[10px] text-[#8899aa] mb-1.5">
                     {f.label}
                   </label>
                   <input
                     type={f.type}
                     placeholder={f.placeholder}
-                    value={form[f.key] || ""}
-                    onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                    className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] placeholder-[#445566] outline-none focus:border-[#d4af7a]"
+                    value={form[f.key]}
+                    onChange={(e) =>
+                      setForm({ ...form, [f.key]: e.target.value })
+                    }
+                    className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6]"
                   />
                 </div>
               ))}
+
               <div>
-                <label className="block text-[10px] tracking-widest uppercase text-[#8899aa] mb-1.5">Type</label>
+                <label className="block text-[10px] text-[#8899aa] mb-1.5">
+                  Type
+                </label>
                 <select
                   value={form.type}
-                  onChange={(e) => setForm({ ...form, type: e.target.value })}
-                  className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] outline-none focus:border-[#d4af7a]"
+                  onChange={(e) =>
+                    setForm({ ...form, type: e.target.value })
+                  }
+                  className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6]"
                 >
                   <option value="ag">Assemblée Générale</option>
                   <option value="sport">Sport</option>
                   <option value="social">Social</option>
-                  <option value="R">Réunion</option>
+                  <option value="R">Reunion</option>
                 </select>
               </div>
             </div>
+
             <div className="flex justify-end gap-2 mt-2">
-              <button onClick={() => setShowForm(false)}
-                className="px-4 py-2 text-xs text-[#8899aa] border border-[#d4af7a22] rounded-lg hover:bg-[#d4af7a11] transition">
+              <button
+                onClick={() => setShowForm(false)}
+                className="px-4 py-2 text-xs text-[#8899aa] border border-[#d4af7a22] rounded-lg"
+              >
                 Annuler
               </button>
-              <button onClick={handleAjouter}
-                className="px-4 py-2 text-xs font-medium bg-[#d4af7a] text-[#0a1628] rounded-lg hover:opacity-90 transition">
+
+              <button
+                onClick={handleAjouter}
+                className="px-4 py-2 text-xs font-medium bg-[#d4af7a] text-[#0a1628] rounded-lg"
+              >
                 Enregistrer
               </button>
             </div>
           </div>
         )}
 
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          {[
-            { label: "Total", val: eventsArray.length, cls: "text-[#f0e8d6]" },
-            { label: "À venir", val: aVenir.length, cls: "text-[#d4af7a]" },
-            { label: "Passés", val: passes.length, cls: "text-[#8899aa]" },
-          ].map((s) => (
-            <div key={s.label} className="bg-[#0d1e38] border border-[#d4af7a22] rounded-xl p-4">
-              <p className="text-[10px] tracking-[.15em] uppercase text-[#8899aa] mb-2">{s.label}</p>
-              <p className={`text-2xl font-medium ${s.cls}`}>{s.val}</p>
-            </div>
+          <div className="bg-[#0d1e38] p-4 rounded-xl text-white">
+            Total: {events.length}
+          </div>
+          <div className="bg-[#0d1e38] p-4 rounded-xl text-yellow-400">
+            À venir: {aVenir.length}
+          </div>
+          <div className="bg-[#0d1e38] p-4 rounded-xl text-gray-400">
+            Passés: {passes.length}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {events.map((e) => (
+            <EventCard key={e.id} e={e} />
           ))}
         </div>
-
-        {/* À venir */}
-        <p className="text-[10px] tracking-[.2em] uppercase text-[#d4af7a] mb-3">À venir</p>
-        <div className="flex flex-col gap-3 mb-8">
-          {aVenir.length === 0 && (
-            <p className="text-sm text-[#8899aa]">Aucun événement à venir.</p>
-          )}
-          {aVenir.map((e) => <EventCard key={e.id} e={e} />)}
-        </div>
-
-        {/* Passés */}
-        {passes.length > 0 && (
-          <>
-            <div className="h-px bg-[#d4af7a22] mb-6" />
-            <p className="text-[10px] tracking-[.2em] uppercase text-[#8899aa] mb-3">Passés</p>
-            <div className="flex flex-col gap-3 opacity-50">
-              {passes.map((e) => <EventCard key={e.id} e={e} />)}
-            </div>
-          </>
-        )}
       </div>
     </div>
   );

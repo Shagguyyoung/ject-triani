@@ -1,11 +1,10 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { getStats, getCotisations, getMembres } from "../data/store";
+import { getStats, getMembres, getCotisations } from "../data/store";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem, fadeIn } from "../utils/animations";
 
 function initials(nom) {
-  // ✅ Sécurisation : vérifier que nom existe et est une chaîne
-  if (!nom || typeof nom !== 'string') return "?";
   return nom.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
@@ -18,51 +17,43 @@ const badgeLabel = { ok: "À jour", pending: "En attente", late: "En retard" };
 
 export default function Dashboard() {
   const { user } = useAuth();
-  
-  // ✅ Sécurisation : s'assurer que les fonctions retournent des valeurs valides
-  const statsRaw = getStats();
-  const stats = {
-    total: statsRaw?.total || 0,
-    aJour: statsRaw?.aJour || 0,
-    enAttente: statsRaw?.enAttente || 0,
-    enRetard: statsRaw?.enRetard || 0,
-    totalPaye: statsRaw?.totalPaye || 0,
-    totalAttendu: statsRaw?.totalAttendu || 0
-  };
-  
-  // ✅ Sécurisation : s'assurer que cotisations est un tableau
-  const cotisationsRaw = getCotisations();
-  const cotisations = Array.isArray(cotisationsRaw) ? cotisationsRaw : [];
-  
-  // ✅ Sécurisation : s'assurer que membres est un tableau
-  const membresRaw = getMembres();
-  const membres = Array.isArray(membresRaw) ? membresRaw : [];
+  const [stats, setStats] = useState({
+    total: 0, aJour: 0, enAttente: 0, enRetard: 0, totalPaye: 0, totalAttendu: 0,
+  });
+  const [membres, setMembres] = useState([]);
+  const [cotisations, setCotisations] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([getStats(), getMembres(), getCotisations()]).then(([s, m, c]) => {
+      setStats(s);
+      setMembres(m);
+      setCotisations(c);
+      setLoading(false);
+    });
+  }, []);
 
   const tauxAJour = stats.total > 0 ? Math.round((stats.aJour / stats.total) * 100) : 0;
   const tauxAttente = stats.total > 0 ? Math.round((stats.enAttente / stats.total) * 100) : 0;
   const tauxRetard = stats.total > 0 ? Math.round((stats.enRetard / stats.total) * 100) : 0;
 
   const circumference = 2 * Math.PI * 40;
-  const arcAJour = stats.total > 0 ? (stats.aJour / stats.total) * circumference : 0;
-  const arcAttente = stats.total > 0 ? (stats.enAttente / stats.total) * circumference : 0;
-  const arcRetard = stats.total > 0 ? (stats.enRetard / stats.total) * circumference : 0;
+  const arcAJour = (stats.aJour / stats.total) * circumference || 0;
+  const arcAttente = (stats.enAttente / stats.total) * circumference || 0;
+  const arcRetard = (stats.enRetard / stats.total) * circumference || 0;
 
-  // ✅ Sécurisation : créer une copie avant de reverse()
-  const derniersMembres = [...membres].reverse().slice(0, 4);
+  const derniersMembres = [...membres].slice(0, 4);
 
   const moisNoms = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
     "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
 
-  // ✅ Sécurisation : vérifier que cotisations est un tableau
   const participationParMois = moisNoms.map((label, i) => {
-    const cotDuMois = Array.isArray(cotisations) 
-      ? cotisations.filter((c) => {
-          const date = c?.date_paiement || c?.date_echeance;
-          if (!date) return false;
-          return new Date(date).getMonth() === i;
-        })
-      : [];
-    const payees = cotDuMois.filter((c) => c?.statut === "ok").length;
+    const cotDuMois = cotisations.filter((c) => {
+      const date = c.date_paiement || c.date_echeance;
+      if (!date) return false;
+      return new Date(date).getMonth() === i;
+    });
+    const payees = cotDuMois.filter((c) => c.statut === "ok").length;
     const total = cotDuMois.length;
     return { label, pct: total > 0 ? Math.round((payees / total) * 100) : 0, total };
   }).filter((m) => m.total > 0);
@@ -77,8 +68,16 @@ export default function Dashboard() {
   const tauxCollecte = stats.totalAttendu > 0
     ? Math.round((stats.totalPaye / stats.totalAttendu) * 100) : 0;
 
-  // ✅ Sécurisation pour user?.nom
-  const userName = user?.nom || "Utilisateur";
+  if (loading) return (
+    <div className="min-h-screen bg-[#0a1628] flex items-center justify-center">
+      <motion.p
+        animate={{ opacity: [0.4, 1, 0.4] }}
+        transition={{ duration: 1.5, repeat: Infinity }}
+        className="text-[#8899aa] text-sm tracking-widest">
+        Chargement...
+      </motion.p>
+    </div>
+  );
 
   return (
     <motion.div {...fadeIn}
@@ -86,19 +85,17 @@ export default function Dashboard() {
       style={{ fontFamily: "'Montserrat', sans-serif" }}>
       <div className="p-6">
 
-        {/* Titre */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4 }}>
-          <p className="text-xs tracking-widest text-[#8899aa] mb-1">Bonjour, {userName}</p>
+          <p className="text-xs tracking-widest text-[#8899aa] mb-1">Bonjour, {user?.nom}</p>
           <h1 className="text-3xl font-medium text-[#f0e8d6] mb-5"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}>
             Vue d'ensemble
           </h1>
         </motion.div>
 
-        {/* Stats membres */}
         <motion.div
           variants={staggerContainer}
           initial="initial"
@@ -117,7 +114,6 @@ export default function Dashboard() {
           ))}
         </motion.div>
 
-        {/* Cotisations */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -137,8 +133,6 @@ export default function Dashboard() {
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-
-          {/* Participation par mois */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -165,7 +159,6 @@ export default function Dashboard() {
             )}
           </motion.div>
 
-          {/* Répartition donut */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -216,7 +209,6 @@ export default function Dashboard() {
           </motion.div>
         </div>
 
-        {/* Derniers membres */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -237,11 +229,11 @@ export default function Dashboard() {
                   {initials(m.nom)}
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-[#f0e8d6]">{m.nom || "Inconnu"}</p>
-                  <p className="text-[11px] text-[#8899aa]">{m.role || "Membre"}</p>
+                  <p className="text-sm font-medium text-[#f0e8d6]">{m.nom}</p>
+                  <p className="text-[11px] text-[#8899aa]">{m.role}</p>
                 </div>
-                <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium ${badgeStyle[m.statut] || "bg-gray-950 text-gray-400"}`}>
-                  {badgeLabel[m.statut] || m.statut || "?"}
+                <span className={`ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium ${badgeStyle[m.statut]}`}>
+                  {badgeLabel[m.statut]}
                 </span>
               </motion.div>
             ))}

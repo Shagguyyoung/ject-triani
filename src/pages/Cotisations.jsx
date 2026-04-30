@@ -18,7 +18,7 @@ const actionStyle = {
 const actionLabel = { ok: "Reçu ✓", pending: "Marquer payé", late: "Relancer" };
 
 function initials(nom) {
-  if (!nom || typeof nom !== 'string') return "?";
+  if (!nom) return "?";
   return nom.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
@@ -35,21 +35,15 @@ export default function Cotisations() {
     type: "annuelle",
   });
 
-  // ✅ Sécurisation : s'assurer que cotisations est un tableau
-  const cotisationsArray = Array.isArray(cotisations) ? cotisations : [];
-  
-  // ✅ Sécurisation : s'assurer que membres est un tableau
-  const membresArray = Array.isArray(membres) ? membres : [];
-
-  // Stats sécurisées
-  const totalAttendu = cotisationsArray.reduce((sum, c) => sum + (c.montant || 0), 0);
-  const totalPaye = cotisationsArray
+  // Stats
+  const totalAttendu = cotisations.reduce((sum, c) => sum + (c.montant || 0), 0);
+  const totalPaye = cotisations
     .filter((c) => c.statut === "ok")
     .reduce((sum, c) => sum + (c.montant || 0), 0);
   const tauxCollecte = totalAttendu > 0 ? Math.round((totalPaye / totalAttendu) * 100) : 0;
 
-  // Filtre sécurisé
-  const filtered = cotisationsArray.filter((c) => {
+  // Filtre
+  const filtered = cotisations.filter((c) => {
     const nom = c.membre?.nom ?? "";
     const role = c.membre?.role ?? "";
     const q = search.toLowerCase();
@@ -118,7 +112,7 @@ export default function Cotisations() {
                 className="bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-4 py-2 text-[#f0e8d6] outline-none focus:border-[#d4af7a]"
               >
                 <option value="">Sélectionner un membre</option>
-                {membresArray.map((m) => (
+                {membres.map((m) => (
                   <option key={m.id} value={m.id}>{m.nom} — {m.role}</option>
                 ))}
               </select>
@@ -164,8 +158,8 @@ export default function Cotisations() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {[
             { label: "Montant mensuel", val: "10 000 F", sub: "par membre", cls: "text-[#d4af7a]" },
-            { label: "Perçu", val: `${totalPaye.toLocaleString()} F`, sub: `${cotisationsArray.filter(c => c.statut === "ok").length} paiements`, cls: "text-green-400" },
-            { label: "Attendu total", val: `${totalAttendu.toLocaleString()} F`, sub: `${cotisationsArray.length} cotisations`, cls: "text-[#f0e8d6]" },
+            { label: "Perçu", val: `${totalPaye.toLocaleString()} F`, sub: `${cotisations.filter(c => c.statut === "ok").length} paiements`, cls: "text-green-400" },
+            { label: "Attendu total", val: `${totalAttendu.toLocaleString()} F`, sub: `${cotisations.length} cotisations`, cls: "text-[#f0e8d6]" },
           ].map((s) => (
             <div key={s.label} className="bg-[#0d1e38] border border-[#d4af7a22] rounded-xl p-4">
               <p className="text-[10px] tracking-[.18em] uppercase text-[#8899aa] mb-2">{s.label}</p>
@@ -205,19 +199,19 @@ export default function Cotisations() {
           ))}
 
           <div className="flex gap-2 ml-auto">
-            <button
-              onClick={() => exportCotisationsPDF(cotisationsArray)}
-              className="text-xs px-3 py-2 rounded-lg border border-[#d4af7a22] text-[#d4af7a] hover:bg-[#d4af7a11] transition"
-            >
-              PDF ↓
-            </button>
-            <button
-              onClick={() => exportCotisationsExcel(cotisationsArray)}
-              className="text-xs px-3 py-2 rounded-lg border border-[#d4af7a22] text-[#d4af7a] hover:bg-[#d4af7a11] transition"
-            >
-              Excel ↓
-            </button>
-          </div>
+  <button
+    onClick={() => exportCotisationsPDF(cotisations)}
+    className="text-xs px-3 py-2 rounded-lg border border-[#d4af7a22] text-[#d4af7a] hover:bg-[#d4af7a11] transition"
+  >
+    PDF ↓
+  </button>
+  <button
+    onClick={() => exportCotisationsExcel(cotisations)}
+    className="text-xs px-3 py-2 rounded-lg border border-[#d4af7a22] text-[#d4af7a] hover:bg-[#d4af7a11] transition"
+  >
+    Excel ↓
+  </button>
+</div>
         </div>
 
         {/* Tableau */}
@@ -253,16 +247,16 @@ export default function Cotisations() {
                     </td>
                     <td className="px-4 py-3 text-[#8899aa] text-xs">{c.date_echeance ?? "—"}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${badge[c.statut]?.cls || "bg-gray-950 text-gray-400"}`}>
-                        {badge[c.statut]?.label || c.statut || "?"}
+                      <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${badge[c.statut]?.cls}`}>
+                        {badge[c.statut]?.label}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => handleAction(c.statut, c.id, c.membre?.nom)}
-                        className={`text-[10px] px-2.5 py-1 rounded-md border font-medium ${actionStyle[c.statut] || "text-gray-400 border-gray-400/20 bg-gray-950"}`}
+                        className={`text-[10px] px-2.5 py-1 rounded-md border font-medium ${actionStyle[c.statut]}`}
                       >
-                        {actionLabel[c.statut] || "Action"}
+                        {actionLabel[c.statut]}
                       </button>
                     </td>
                   </tr>

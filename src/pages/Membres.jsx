@@ -12,8 +12,6 @@ const badge = {
 };
 
 function initials(nom) {
-  // ✅ Sécurisation : vérifier que nom existe
-  if (!nom || typeof nom !== 'string') return "?";
   return nom.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
@@ -37,7 +35,7 @@ const ModalForm = ({ title, form, setForm, onCancel, onSubmit, submitLabel }) =>
           <label className="block text-[10px] tracking-widest uppercase text-[#8899aa] mb-1.5">{f.label}</label>
           <input
             placeholder={f.placeholder}
-            value={form[f.key] || ""}
+            value={form[f.key]}
             onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
             className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] placeholder-[#445566] outline-none"
           />
@@ -46,7 +44,7 @@ const ModalForm = ({ title, form, setForm, onCancel, onSubmit, submitLabel }) =>
 
       <div className="mb-3">
         <label className="block text-[10px] tracking-widest uppercase text-[#8899aa] mb-1.5">Rôle</label>
-        <select value={form.role || "Membre"} onChange={(e) => setForm({ ...form, role: e.target.value })}
+        <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
           className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] outline-none">
           {["Membre", "Trésorier", "Secrétaire", "Président"].map((r) => <option key={r}>{r}</option>)}
         </select>
@@ -54,7 +52,7 @@ const ModalForm = ({ title, form, setForm, onCancel, onSubmit, submitLabel }) =>
 
       <div className="mb-4">
         <label className="block text-[10px] tracking-widest uppercase text-[#8899aa] mb-1.5">Statut</label>
-        <select value={form.statut || "ok"} onChange={(e) => setForm({ ...form, statut: e.target.value })}
+        <select value={form.statut} onChange={(e) => setForm({ ...form, statut: e.target.value })}
           className="w-full bg-[#0a1628] border border-[#d4af7a22] rounded-lg px-3 py-2 text-sm text-[#f0e8d6] outline-none">
           <option value="ok">À jour</option>
           <option value="pending">En attente</option>
@@ -83,14 +81,9 @@ export default function Membres() {
   const [membreAModifier, setMembreAModifier] = useState(null);
   const [formModif, setFormModif] = useState({ nom: "", tel: "", email: "", role: "Membre", statut: "ok" });
 
-  // ✅ Sécurisation : s'assurer que membres est un tableau
-  const membresArray = Array.isArray(membres) ? membres : [];
-
-  const filtered = membresArray.filter((m) => {
+  const filtered = membres.filter((m) => {
     const q = search.toLowerCase();
-    const matchQ = (m.nom || "").toLowerCase().includes(q) || 
-                   (m.role || "").toLowerCase().includes(q) || 
-                   (m.tel || "").includes(q);
+    const matchQ = m.nom.toLowerCase().includes(q) || m.role.toLowerCase().includes(q) || m.tel?.includes(q);
     const matchF = filtre === "tous" || m.statut === filtre;
     return matchQ && matchF;
   });
@@ -107,21 +100,13 @@ export default function Membres() {
 
   const handleModifier = (m) => {
     setMembreAModifier(m);
-    setFormModif({ 
-      nom: m.nom || "", 
-      tel: m.tel ?? "", 
-      email: m.email ?? "", 
-      role: m.role || "Membre", 
-      statut: m.statut || "ok" 
-    });
+    setFormModif({ nom: m.nom, tel: m.tel ?? "", email: m.email ?? "", role: m.role, statut: m.statut });
   };
 
   const handleSauvegarder = () => {
     if (!formModif.nom.trim()) return;
     modifierMembre(membreAModifier.id, formModif);
-    if (setMembres) {
-      setMembres((prev) => prev.map((m) => m.id === membreAModifier.id ? { ...m, ...formModif } : m));
-    }
+    setMembres((prev) => prev.map((m) => m.id === membreAModifier.id ? { ...m, ...formModif } : m));
     setMembreAModifier(null);
   };
 
@@ -196,12 +181,12 @@ export default function Membres() {
           </motion.button>
           <div className="flex gap-2">
             <motion.button whileTap={{ scale: 0.95 }}
-              onClick={() => exportMembresPDF(membresArray)}
+              onClick={() => exportMembresPDF(membres)}
               className="text-xs px-3 py-2 rounded-lg border border-[#d4af7a22] text-[#d4af7a] hover:bg-[#d4af7a11] transition">
               PDF ↓
             </motion.button>
             <motion.button whileTap={{ scale: 0.95 }}
-              onClick={() => exportMembresExcel(membresArray)}
+              onClick={() => exportMembresExcel(membres)}
               className="text-xs px-3 py-2 rounded-lg border border-[#d4af7a22] text-[#d4af7a] hover:bg-[#d4af7a11] transition">
               Excel ↓
             </motion.button>
@@ -231,11 +216,11 @@ export default function Membres() {
                   {initials(m.nom)}
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-[#f0e8d6]">{m.nom || "Sans nom"}</p>
-                  <p className="text-[11px] text-[#8899aa]">{m.role || "Membre"} · {m.tel || "—"}</p>
+                  <p className="text-sm font-medium text-[#f0e8d6]">{m.nom}</p>
+                  <p className="text-[11px] text-[#8899aa]">{m.role} · {m.tel}</p>
                 </div>
-                <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${badge[m.statut]?.cls || "bg-gray-950 text-gray-400"}`}>
-                  {badge[m.statut]?.label || m.statut || "?"}
+                <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${badge[m.statut].cls}`}>
+                  {badge[m.statut].label}
                 </span>
                 <div className="flex gap-1.5 ml-2">
                   <motion.button

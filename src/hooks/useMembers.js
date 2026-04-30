@@ -3,46 +3,30 @@ import { getMembres, ajouterMembre, supprimerMembre, modifierMembre } from "../d
 
 export function useMembers() {
   const [membres, setMembres] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // ✅ Charger les membres au montage
   useEffect(() => {
-    const loadMembres = () => {
-      const result = getMembres();
-      setMembres(Array.isArray(result) ? result : []);
-    };
-    loadMembres();
+    getMembres().then((data) => {
+      setMembres(data);
+      setLoading(false);
+    });
   }, []);
 
-  function ajouter(form) {
-    const nouveau = ajouterMembre(form);
-    // ✅ Sécurisation : s'assurer que prev est un tableau
-    setMembres((prev) => {
-      const prevArray = Array.isArray(prev) ? prev : [];
-      return nouveau ? [nouveau, ...prevArray] : prevArray;
-    });
+  async function ajouter(form) {
+    const nouveau = await ajouterMembre(form);
+    if (nouveau) setMembres((prev) => [nouveau, ...prev]);
+    return nouveau;
   }
 
-  function supprimer(id) {
-    supprimerMembre(id);
-    setMembres((prev) => {
-      const prevArray = Array.isArray(prev) ? prev : [];
-      return prevArray.filter((m) => m.id !== id);
-    });
+  async function supprimer(id) {
+    await supprimerMembre(id);
+    setMembres((prev) => prev.filter((m) => m.id !== id));
   }
 
-  function modifierStatut(id, statut) {
-    modifierMembre(id, { statut });
-    setMembres((prev) => {
-      const prevArray = Array.isArray(prev) ? prev : [];
-      return prevArray.map((m) => (m.id === id ? { ...m, statut } : m));
-    });
+  async function modifier(id, updates) {
+    await modifierMembre(id, updates);
+    setMembres((prev) => prev.map((m) => m.id === id ? { ...m, ...updates } : m));
   }
 
-  return { 
-    membres: Array.isArray(membres) ? membres : [], 
-    setMembres, 
-    ajouterMembre: ajouter, 
-    supprimerMembre: supprimer, 
-    modifierStatut 
-  };
+  return { membres, loading, setMembres, ajouterMembre: ajouter, supprimerMembre: supprimer, modifierMembre: modifier };
 }
