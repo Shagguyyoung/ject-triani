@@ -9,16 +9,17 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    setError("");
-    if (!form.email || !form.password) { setError("Veuillez remplir tous les champs."); return; }
-    setLoading(true);
-    setTimeout(() => {
-      const ok = login(form.email, form.password);
-      if (!ok) setError("Email ou mot de passe incorrect.");
-      setLoading(false);
-    }, 500);
-  };
+  const handleLogin = async () => {
+  setError("");
+  if (!form.email || !form.password) {
+    setError("Veuillez remplir tous les champs.");
+    return;
+  }
+  setLoading(true);
+  const ok = await login(form.email, form.password);
+  if (!ok) setError("Email ou mot de passe incorrect.");
+  setLoading(false);
+};
 
   return (
     <motion.div {...fadeIn}

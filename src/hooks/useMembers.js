@@ -13,10 +13,13 @@ export function useMembers() {
   }, []);
 
   async function ajouter(form) {
-    const nouveau = await ajouterMembre(form);
-    if (nouveau) setMembres((prev) => [nouveau, ...prev]);
-    return nouveau;
+  const nouveau = await ajouterMembre(form);
+  if (nouveau) {
+    const data = await getMembres();
+    setMembres(data);
   }
+  return nouveau;
+}
 
   async function supprimer(id) {
     await supprimerMembre(id);

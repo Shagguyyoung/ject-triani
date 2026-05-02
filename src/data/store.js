@@ -12,119 +12,47 @@ export async function getMembres() {
 }
 
 export async function ajouterMembre(form) {
-  // 1. Créer l'utilisateur dans Supabase Auth
-  let authUser = null;
-  
-  if (form.email) {
-    const tempPassword = "ject2025";
-    
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: form.email,
-      password: tempPassword,
-      options: {
-        data: {
-          nom: form.nom,
-          prenom: form.prenom || "",
-          role: form.role || "Membre"
-        }
-      }
-    });
-    
-    if (authError) {
-      console.error("Erreur création auth:", authError);
-      // Si l'utilisateur existe déjà, on continue quand même
-      if (!authError.message.includes("already registered")) {
-        // On ne retourne pas null, on continue pour créer le membre
-        console.warn("L'utilisateur existe peut-être déjà");
-      }
-    } else {
-      authUser = authData.user;
-    }
-  }
-  
-  // 2. Ajouter le membre dans la table "membres"
-  const membreData = {
-    nom: form.nom,
-    prenom: form.prenom || "",
-    email: form.email,
-    telephone: form.tel || "",
-    role: form.role || "Membre",
-    statut: form.statut || "ok",
-    user_id: authUser?.id || null
-  };
-  
+  // 1. Ajouter dans la table membres
   const { data, error } = await supabase
     .from("membres")
-    .insert([membreData])
+    .insert([{
+      nom: form.nom,
+      email: form.email ?? null,
+      tel: form.tel ?? null,
+      role: form.role ?? "Membre",
+      statut: form.statut ?? "ok",
+    }])
     .select()
     .single();
-    
-  if (error) { 
-    console.error("ajouterMembre:", error); 
-    return null; 
-  }
-  
-  // 3. Sauvegarder aussi dans localStorage pour la connexion (fallback)
+
+  if (error) { console.error("ajouterMembre:", error); return null; }
+
+  // 2. Créer le compte dans la table users si email fourni
   if (form.email) {
-    const comptes = JSON.parse(localStorage.getItem("association_users") || "[]");
-    const existe = comptes.find((u) => u.email === form.email);
-    if (!existe) {
-      comptes.push({
-        email: form.email,
-        password: "ject2025",
-        role: form.role || "membre",
-        nom: form.nom,
-        prenom: form.prenom || "",
-        membre_id: data.id,
-      });
-      localStorage.setItem("association_users", JSON.stringify(comptes));
-    }
+    await creerCompte(form.email, form.nom, data.id);
   }
-  
-  // 4. Afficher les identifiants dans la console pour debug
-  console.log("✅ Membre ajouté avec succès !");
-  console.log("   Email:", form.email);
-  console.log("   Mot de passe: ject2025");
-  
+
   return data;
 }
 
 export async function supprimerMembre(id) {
-  // Récupérer le membre pour avoir son user_id et email
-  const { data: membre } = await supabase
-    .from("membres")
-    .select("user_id, email")
-    .eq("id", id)
-    .single();
-  
-  // Supprimer le membre de la table
+  // Supprimer le compte utilisateur lié
+  await supabase.from("users").delete().eq("membre_id", id);
+  // Supprimer le membre
   const { error } = await supabase.from("membres").delete().eq("id", id);
   if (error) console.error("supprimerMembre:", error);
-  
-  // Supprimer du localStorage
-  if (membre?.email) {
-    const comptes = JSON.parse(localStorage.getItem("association_users") || "[]");
-    const nouveauxComptes = comptes.filter((u) => u.email !== membre.email);
-    localStorage.setItem("association_users", JSON.stringify(nouveauxComptes));
-  }
-  
-  // Note: La suppression de l'utilisateur Auth nécessite des droits admin
-  // Si tu as besoin de cette fonctionnalité, contacte-moi
 }
 
 export async function modifierMembre(id, updates) {
   const { error } = await supabase.from("membres").update(updates).eq("id", id);
   if (error) console.error("modifierMembre:", error);
-  
-  // Mettre à jour le localStorage si l'email ou le nom change
+
+  // Mettre à jour le compte users si email ou nom change
   if (updates.email || updates.nom) {
-    const comptes = JSON.parse(localStorage.getItem("association_users") || "[]");
-    const compteIndex = comptes.findIndex((u) => u.membre_id === id);
-    if (compteIndex !== -1) {
-      if (updates.email) comptes[compteIndex].email = updates.email;
-      if (updates.nom) comptes[compteIndex].nom = updates.nom;
-      localStorage.setItem("association_users", JSON.stringify(comptes));
-    }
+    const patch = {};
+    if (updates.email) patch.email = updates.email;
+    if (updates.nom) patch.nom = updates.nom;
+    await supabase.from("users").update(patch).eq("membre_id", id);
   }
 }
 
@@ -207,59 +135,40 @@ export async function supprimerEvent(id) {
   if (error) console.error("supprimerEvent:", error);
 }
 
-// ─── AUTH UTILS ─────────────────────────────────────
+// ─── AUTH ────────────────────────────────────────────
 
-// Fonction pour connecter un utilisateur (à utiliser dans LoginPage)
-export async function loginUser(email, password) {
-  // 1. Essayer la connexion avec Supabase Auth
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-  
-  if (!error && data.user) {
-    // Récupérer le profil membre
-    const { data: membre } = await supabase
-      .from("membres")
-      .select("*")
-      .eq("email", email)
-      .single();
-    
-    return {
-      success: true,
-      user: {
-        id: data.user.id,
-        email: data.user.email,
-        role: membre?.role || "membre",
-        nom: membre?.nom || data.user.user_metadata?.nom,
-        prenom: membre?.prenom || "",
-        membre_id: membre?.id
-      }
-    };
-  }
-  
-  // 2. Fallback: connexion avec localStorage
-  const comptes = JSON.parse(localStorage.getItem("association_users") || "[]");
-  const userLocal = comptes.find(u => u.email === email && u.password === password);
-  
-  if (userLocal) {
-    return {
-      success: true,
-      user: {
-        email: userLocal.email,
-        role: userLocal.role,
-        nom: userLocal.nom,
-        prenom: userLocal.prenom || "",
-        membre_id: userLocal.membre_id
-      }
-    };
-  }
-  
-  return { success: false, error: "Email ou mot de passe incorrect" };
+export async function getUser(email, password) {
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("email", email)
+    .eq("password", password)
+    .single();
+  if (error) return null;
+  return data;
 }
 
-// Fonction pour déconnecter l'utilisateur
-export async function logoutUser() {
-  await supabase.auth.signOut();
-  // Le localStorage sera géré par l'app
+export async function creerCompte(email, nom, membreId) {
+  // Vérifier si le compte existe déjà
+  const { data: existe } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", email)
+    .single();
+
+  if (existe) return existe;
+
+  const { data, error } = await supabase
+    .from("users")
+    .insert([{
+      email,
+      password: "ject2025",
+      role: "membre",
+      nom,
+      membre_id: membreId,
+    }])
+    .select()
+    .single();
+  if (error) { console.error("creerCompte:", error); return null; }
+  return data;
 }

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from "react";
-import users from "../data/users";
+import { getUser } from "../data/store";
 
 const AuthContext = createContext();
 
@@ -9,19 +9,8 @@ export function AuthProvider({ children }) {
     return saved ? JSON.parse(saved) : null;
   });
 
-  function login(email, password) {
-    // Comptes dynamiques (membres ajoutés via l'interface)
-    const dynamicUsers = JSON.parse(
-      localStorage.getItem("association_users") || "[]"
-    );
-
-    // Fusionner avec les comptes fixes (admin)
-    const allUsers = [...users, ...dynamicUsers];
-
-    const found = allUsers.find(
-      (u) => u.email === email && u.password === password
-    );
-
+  async function login(email, password) {
+    const found = await getUser(email, password);
     if (found) {
       const { password: _, ...safeUser } = found;
       setUser(safeUser);
@@ -40,9 +29,9 @@ export function AuthProvider({ children }) {
   const isResponsable = user?.role === "responsable" || isAdmin;
 
   return (
-    <AuthContext.Provider
-      value={{ user, login, logout, isAdmin, isResponsable, isAuthenticated: !!user }}
-    >
+    <AuthContext.Provider value={{
+      user, login, logout, isAdmin, isResponsable, isAuthenticated: !!user,
+    }}>
       {children}
     </AuthContext.Provider>
   );
